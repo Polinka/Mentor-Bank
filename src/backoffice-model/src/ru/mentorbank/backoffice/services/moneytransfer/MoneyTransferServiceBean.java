@@ -1,7 +1,10 @@
 package ru.mentorbank.backoffice.services.moneytransfer;
 
 import ru.mentorbank.backoffice.dao.OperationDao;
+import ru.mentorbank.backoffice.model.Account;
+import ru.mentorbank.backoffice.model.Operation;
 import ru.mentorbank.backoffice.model.stoplist.JuridicalStopListRequest;
+import ru.mentorbank.backoffice.model.stoplist.PhysicalStopListRequest;
 import ru.mentorbank.backoffice.model.stoplist.StopListInfo;
 import ru.mentorbank.backoffice.model.stoplist.StopListStatus;
 import ru.mentorbank.backoffice.model.transfer.AccountInfo;
@@ -63,7 +66,19 @@ public class MoneyTransferServiceBean implements MoneyTransferSerice {
 			dstStopListInfo = getStopListInfo(request.getDstAccount());
 		}
 
-		private void saveOperation() {
+		private void saveOperation() throws TransferException {
+			try {
+                Operation Op = new Operation();
+                Account srcAccount = new Account();
+                Account dstAccount = new Account();
+                srcAccount.setAccountNumber(request.getSrcAccount().getAccountNumber());
+                dstAccount.setAccountNumber(request.getDstAccount().getAccountNumber());
+                Op.setSrcAccount(srcAccount);
+                Op.setDstAccount(dstAccount);
+                operationDao.saveOperation(Op);
+            } catch (Exception ex) {
+                throw new TransferException(ex.getMessage());
+            }
 			// TODO: Необходимо сделать вызов операции saveOperation и сделать
 			// соответствующий тест вызова операции operationDao.saveOperation()
 		}
@@ -90,6 +105,12 @@ public class MoneyTransferServiceBean implements MoneyTransferSerice {
 						.getJuridicalStopListInfo(request);
 				return stopListInfo;
 			} else if (accountInfo instanceof PhysicalAccountInfo) {
+				PhysicalAccountInfo physicalAccountInfo = (PhysicalAccountInfo) accountInfo;
+                PhysicalStopListRequest request = new PhysicalStopListRequest();
+                request.setDocumentNumber(physicalAccountInfo.getDocumentNumber());
+                request.setDocumentSeries(physicalAccountInfo.getDocumentSeries());
+                StopListInfo stopListInfo = stopListService.getPhysicalStopListInfo(request);
+                return stopListInfo;
 				// TODO: Сделать вызов stopListService для физических лиц
 			}
 			return null;
@@ -104,7 +125,7 @@ public class MoneyTransferServiceBean implements MoneyTransferSerice {
 		}
 
 		private void verifySrcBalance() throws TransferException {
-			if (!accountService.verifyBalance(request.getDstAccount()))
+			if (!accountService.verifyBalance(request.getSrcAccount()))
 				throw new TransferException(LOW_BALANCE_ERROR_MESSAGE);
 		}
 	}
